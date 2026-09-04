@@ -504,7 +504,7 @@ footer{
       <p class="subtitle">Rockstar Capital Management — raw vs. operational balances across 21 properties, with internal loans, refunds &amp; reserves backed out on demand.</p>
     </div>
     <div class="masthead-right">
-      21 properties<br>19 months tracked<br>Jan&nbsp;2025&ndash;Jul&nbsp;2026
+      21 properties<br>20 months tracked<br>Jan&nbsp;2025&ndash;Aug&nbsp;2026
     </div>
   </div>
 </header>
@@ -619,7 +619,7 @@ footer{
       <div class="kpi">
         <div class="klabel">MoM Change — Adjusted</div>
         <div class="kval" id="kpi-mom">—</div>
-        <div class="ksub">Jun&nbsp;2026 &rarr; Jul&nbsp;2026</div>
+        <div class="ksub" id="kpi-mom-sub">Jun&nbsp;2026 &rarr; Jul&nbsp;2026</div>
       </div>
     </div>
   </section>
@@ -627,7 +627,7 @@ footer{
   <section id="trend">
     <div class="section-head">
       <h2>Portfolio Balance Trend</h2>
-      <span class="section-note">Raw vs. adjusted, all 23 properties</span>
+      <span class="section-note">Raw vs. adjusted, all 21 properties</span>
     </div>
     <div class="grid-2">
       <div class="panel">
@@ -646,7 +646,7 @@ footer{
   <section id="byprop">
     <div class="section-head">
       <h2>Balance by Property</h2>
-      <span class="section-note">Operating + Reserve (Jun&nbsp;2026) + Escrow (as of 6/23/2026) &middot; hover a bar for the breakdown</span>
+      <span class="section-note">Operating + Reserve bank balances (Aug&nbsp;2026) &middot; hover a bar for the breakdown</span>
     </div>
     <div class="panel">
       <div class="chart-wrap"><canvas id="propBarChart" height="640"></canvas></div>
@@ -712,6 +712,30 @@ const ESCROW = D.escrow || {};
 const OPRES = D.op_res_split || {};
 const RCM_ACCOUNTS = D.rcm_accounts || {};
 const RCM_NAMES = Object.keys(RCM_ACCOUNTS);
+
+// ---- August 2026 month-end (from the Historical sheet, 9/1/2026 close) ----
+// Validated: every property's Jul sum in Historical matches this file's stored Jul values.
+// Bender Hollow & Westport excluded (sold); the old Waterchase account's $12,154 residual
+// is folded into Rockstar Waterchase (per "Waterchase became Rockstar Waterchase").
+MONTHS.push('Aug-2026');
+LABELS.push('Aug-26');
+const AUG_RAW = {
+  'Apple Creek':193707.70,'Brookmore Hollow':626319.01,'Cedar Ridge':39033.51,'Churchill Square':156266.16,
+  'City Crossing':478944.01,'Deerbrook Forest':35290.35,'Deerbrook Gardens':313792.15,'Green Meadows':279820.69,
+  'Huntington Oaks':68315.81,'Kingsville Pointe':158766.72,'Lakeview at Westpark':585713.61,'Meadow Park':329589.04,
+  'Meadowbrook':825103.49,'Newport Oaks':155541.60,'Oak Tree':790500.40,'Parkside':636664.32,
+  'Reserve on Garth Rd':126469.26,'Steeplechase':328825.12,'Valencia Place':441107.55,'Rockstar Waterchase':556288.90,
+  'Westwood Village':793838.50
+};
+PROPS.forEach(p => RAW[p].push(AUG_RAW[p] !== undefined ? AUG_RAW[p] : RAW[p][RAW[p].length-1]));
+const AUG_RCM = { 'RCM Clearing':479451.43, 'RCM Main OPS':135071.31, 'Rockstar MMA':278047.06, 'RCM Academy':172866.05 };
+RCM_NAMES.forEach(n => RCM_ACCOUNTS[n].push(AUG_RCM[n] !== undefined ? AUG_RCM[n] : 0));
+
+// Refresh the "Balance by Property" operating/reserve split to August (bank accounts, ties to each
+// property's balance). Bank escrow accounts are $0, so escrow is 0 — the prior large "escrow" figure
+// was mortgage/servicer escrow (held off-balance-sheet), which never reconciled to the bank ledger.
+const AUG_OPRES = {"Apple Creek":{"operating":116086.62,"reserve":77621.08},"Brookmore Hollow":{"operating":289417.15,"reserve":336901.86},"Cedar Ridge":{"operating":38873.63,"reserve":159.88},"Churchill Square":{"operating":45251.09,"reserve":111015.07},"City Crossing":{"operating":242918.27,"reserve":236025.74},"Deerbrook Forest":{"operating":35218.83,"reserve":71.52},"Deerbrook Gardens":{"operating":306075.57,"reserve":7716.58},"Green Meadows":{"operating":175935.72,"reserve":103884.97},"Huntington Oaks":{"operating":68315.81,"reserve":0},"Kingsville Pointe":{"operating":58603.72,"reserve":100163},"Lakeview at Westpark":{"operating":87309.66,"reserve":498403.95},"Meadow Park":{"operating":223890.5,"reserve":105698.54},"Meadowbrook":{"operating":500043.02,"reserve":325060.47},"Newport Oaks":{"operating":110194.14,"reserve":45347.46},"Oak Tree":{"operating":415773.27,"reserve":374727.13},"Parkside":{"operating":190318.36,"reserve":446345.96},"Reserve on Garth Rd":{"operating":97047.68,"reserve":29421.58},"Rockstar Waterchase":{"operating":303002.98,"reserve":253285.92},"Steeplechase":{"operating":50126.27,"reserve":278698.85},"Valencia Place":{"operating":314346.14,"reserve":126761.41},"Westwood Village":{"operating":75632.64,"reserve":718205.86}};
+PROPS.forEach(p => { if(AUG_OPRES[p]) OPRES[p] = AUG_OPRES[p]; ESCROW[p] = 0; });
 
 // ---- Internal loans: display list + dated adjustments (with repayment reversals) + net position ----
 const LOANS = INTERNAL_LOANS.map(L => {
@@ -807,6 +831,7 @@ function portfolioSeries(){
   return {rawTotal, adjTotal};
 }
 
+function monthNice(lbl){ const p = (lbl||'').split('-'); return p.length===2 ? p[0] + ' 20' + p[1] : lbl; }
 function fmtCur(v){
   const neg = v < 0;
   const abs = Math.abs(Math.round(v));
@@ -1066,6 +1091,12 @@ function updateKPIs(){
   momEl.textContent = (mom>=0?'+':'') + fmtCur(mom).replace('-','');
   momEl.className = 'kval' + (mom<0?' neg':'');
 
+  const lateL = monthNice(LABELS[n-1]);
+  document.getElementById('kpi-raw-sub').textContent = lateL;
+  document.getElementById('kpi-adj-sub').textContent = lateL;
+  const momSub = document.getElementById('kpi-mom-sub');
+  if(momSub) momSub.textContent = monthNice(LABELS[n-2]) + ' → ' + lateL;
+
   CATS.forEach(c => {
     let sum = 0; PROPS.forEach(p => sum += cum[p][c][n-1]);
     const id = c==='Internal Loan' ? 'amt-loan' : c==='Refund & Reserve' ? 'amt-refund' : 'amt-dist';
@@ -1237,7 +1268,7 @@ function renderPropMeta(property){
   const raw = RAW[property][n-1];
   const adj = adjustedSeries(property)[n-1];
   document.getElementById('propMeta').textContent =
-    `Jul 2026 — Actual ${fmtCur(raw)}  ·  Adjusted ${fmtCur(adj)}`;
+    `${monthNice(LABELS[n-1])} — Actual ${fmtCur(raw)}  ·  Adjusted ${fmtCur(adj)}`;
 }
 
 function renderLoansTable(property){
