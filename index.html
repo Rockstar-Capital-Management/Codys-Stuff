@@ -646,7 +646,7 @@ footer{
   <section id="byprop">
     <div class="section-head">
       <h2>Balance by Property</h2>
-      <span class="section-note">Operating + Reserve bank balances (Aug&nbsp;2026) &middot; hover a bar for the breakdown</span>
+      <span class="section-note">Bank operating + reserve (Aug&nbsp;2026) + lender-held escrow &amp; reserves (as of 8/20/2026) &middot; hover a bar for the breakdown</span>
     </div>
     <div class="panel">
       <div class="chart-wrap"><canvas id="propBarChart" height="640"></canvas></div>
@@ -735,7 +735,12 @@ RCM_NAMES.forEach(n => RCM_ACCOUNTS[n].push(AUG_RCM[n] !== undefined ? AUG_RCM[n
 // property's balance). Bank escrow accounts are $0, so escrow is 0 — the prior large "escrow" figure
 // was mortgage/servicer escrow (held off-balance-sheet), which never reconciled to the bank ledger.
 const AUG_OPRES = {"Apple Creek":{"operating":116086.62,"reserve":77621.08},"Brookmore Hollow":{"operating":289417.15,"reserve":336901.86},"Cedar Ridge":{"operating":38873.63,"reserve":159.88},"Churchill Square":{"operating":45251.09,"reserve":111015.07},"City Crossing":{"operating":242918.27,"reserve":236025.74},"Deerbrook Forest":{"operating":35218.83,"reserve":71.52},"Deerbrook Gardens":{"operating":306075.57,"reserve":7716.58},"Green Meadows":{"operating":175935.72,"reserve":103884.97},"Huntington Oaks":{"operating":68315.81,"reserve":0},"Kingsville Pointe":{"operating":58603.72,"reserve":100163},"Lakeview at Westpark":{"operating":87309.66,"reserve":498403.95},"Meadow Park":{"operating":223890.5,"reserve":105698.54},"Meadowbrook":{"operating":500043.02,"reserve":325060.47},"Newport Oaks":{"operating":110194.14,"reserve":45347.46},"Oak Tree":{"operating":415773.27,"reserve":374727.13},"Parkside":{"operating":190318.36,"reserve":446345.96},"Reserve on Garth Rd":{"operating":97047.68,"reserve":29421.58},"Rockstar Waterchase":{"operating":303002.98,"reserve":253285.92},"Steeplechase":{"operating":50126.27,"reserve":278698.85},"Valencia Place":{"operating":314346.14,"reserve":126761.41},"Westwood Village":{"operating":75632.64,"reserve":718205.86}};
-PROPS.forEach(p => { if(AUG_OPRES[p]) OPRES[p] = AUG_OPRES[p]; ESCROW[p] = 0; });
+PROPS.forEach(p => { if(AUG_OPRES[p]) OPRES[p] = AUG_OPRES[p]; });
+
+// Lender-held reserves/escrows (servicer-held, off the bank accounts; as of 8/20/2026).
+// Kingsville Pointe's $100,163 "collateral" is its Reserve bank account (already counted), so 0 here to avoid double-counting.
+const AUG_ESCROW = {"Apple Creek":172995.66,"Brookmore Hollow":115773.07,"Cedar Ridge":647217.92,"Churchill Square":205649.3,"City Crossing":802840.42,"Deerbrook Forest":279148.48,"Deerbrook Gardens":212950.05,"Green Meadows":678643.09,"Huntington Oaks":447279.79,"Kingsville Pointe":0,"Lakeview at Westpark":974906.53,"Meadow Park":505215.8,"Meadowbrook":539010.23,"Newport Oaks":495706.24,"Oak Tree":455286.13,"Parkside":435546.6,"Reserve on Garth Rd":353494,"Rockstar Waterchase":270501.81,"Steeplechase":508511.89,"Valencia Place":1052783.01,"Westwood Village":704370.36};
+PROPS.forEach(p => { ESCROW[p] = AUG_ESCROW[p] !== undefined ? AUG_ESCROW[p] : 0; });
 
 // ---- Internal loans: display list + dated adjustments (with repayment reversals) + net position ----
 const LOANS = INTERNAL_LOANS.map(L => {
@@ -945,10 +950,10 @@ function barTooltipHandler(context){
 
     el.innerHTML = `
       <div class="rt-title">${p}</div>
-      <div class="rt-total">${fmtCur(total)}<span class="rt-total-label">total cash position</span></div>
-      <div class="rt-row"><span class="rt-dot" style="background:${GOLD}"></span><span class="rt-label">Operating</span><span class="rt-val">${fmtCur(or.operating)}</span></div>
-      <div class="rt-row"><span class="rt-dot" style="background:${SAGE}"></span><span class="rt-label">Reserve</span><span class="rt-val">${fmtCur(or.reserve)}</span></div>
-      <div class="rt-row"><span class="rt-dot" style="background:${PURPLE}"></span><span class="rt-label">Escrow</span><span class="rt-val">${fmtCur(esc)}</span></div>
+      <div class="rt-total">${fmtCur(total)}<span class="rt-total-label">total incl. lender-held reserves</span></div>
+      <div class="rt-row"><span class="rt-dot" style="background:${GOLD}"></span><span class="rt-label">Operating (bank)</span><span class="rt-val">${fmtCur(or.operating)}</span></div>
+      <div class="rt-row"><span class="rt-dot" style="background:${SAGE}"></span><span class="rt-label">Reserve (bank)</span><span class="rt-val">${fmtCur(or.reserve)}</span></div>
+      <div class="rt-row"><span class="rt-dot" style="background:${PURPLE}"></span><span class="rt-label">Escrow (lender-held)</span><span class="rt-val">${fmtCur(esc)}</span></div>
       <div class="rt-divider"></div>
       <div class="rt-row"><span class="rt-dot" style="background:${lnColor}"></span><span class="rt-label">Internal loans, net</span><span class="rt-val" style="color:${lnColor}">${lnLabel}</span></div>
       <div class="rt-note">${lnNote}</div>
