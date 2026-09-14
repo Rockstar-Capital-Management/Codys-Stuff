@@ -781,6 +781,16 @@ function computeNetLoans(loans){
 const ADJ = D.adjustments.filter(a => a.category !== 'Internal Loan').concat(buildInternalLoanAdjustments(LOANS));
 const NETLOANS = computeNetLoans(LOANS);
 
+// ---- Manually-added refunds (added directly here, not from the workbook export) ----
+// Each entry shows in the Refunds & Reserves table and is backed out of the adjusted balance from its date.
+const MANUAL_REFUNDS = [
+  { property:'Green Meadows', checktype:'Credit', account:'Operating', date:'2026-02-05', amount:350000, notes:'' },
+];
+MANUAL_REFUNDS.forEach(r => {
+  REFUNDS.push(r);
+  ADJ.push({ property:r.property, category:'Refund & Reserve', date:r.date, amount:r.amount, description:(r.checktype || 'Refund') });
+});
+
 const CATS = ['Internal Loan', 'Refund & Reserve', 'Distribution'];
 const monthEnd = MONTHS.map(m => new Date(m + '-01'));
 // actual month-end dates aren't needed precisely; use ISO comparison via YYYY-MM string boundary
