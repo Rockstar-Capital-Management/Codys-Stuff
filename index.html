@@ -715,8 +715,8 @@ const RCM_NAMES = Object.keys(RCM_ACCOUNTS);
 
 // ---- August 2026 month-end (from the Historical sheet, 9/1/2026 close) ----
 // Validated: every property's Jul sum in Historical matches this file's stored Jul values.
-// Bender Hollow & Westport excluded (sold); the old Waterchase account's $12,154 residual
-// is folded into Rockstar Waterchase (per "Waterchase became Rockstar Waterchase").
+// Bender Hollow & Westport excluded (sold). The old Waterchase account's $12,154 operating residual
+// is dropped (never part of the Rockstar Waterchase series; keeps its MoM honest).
 MONTHS.push('Aug-2026');
 LABELS.push('Aug-26');
 const AUG_RAW = {
@@ -724,7 +724,7 @@ const AUG_RAW = {
   'City Crossing':478944.01,'Deerbrook Forest':35290.35,'Deerbrook Gardens':313792.15,'Green Meadows':279820.69,
   'Huntington Oaks':68315.81,'Kingsville Pointe':158766.72,'Lakeview at Westpark':585713.61,'Meadow Park':329589.04,
   'Meadowbrook':825103.49,'Newport Oaks':155541.60,'Oak Tree':790500.40,'Parkside':636664.32,
-  'Reserve on Garth Rd':126469.26,'Steeplechase':328825.12,'Valencia Place':441107.55,'Rockstar Waterchase':556288.90,
+  'Reserve on Garth Rd':126469.26,'Steeplechase':328825.12,'Valencia Place':441107.55,'Rockstar Waterchase':544134.66,
   'Westwood Village':793838.50
 };
 PROPS.forEach(p => RAW[p].push(AUG_RAW[p] !== undefined ? AUG_RAW[p] : RAW[p][RAW[p].length-1]));
@@ -734,7 +734,7 @@ RCM_NAMES.forEach(n => RCM_ACCOUNTS[n].push(AUG_RCM[n] !== undefined ? AUG_RCM[n
 // Refresh the "Balance by Property" operating/reserve split to August (bank accounts, ties to each
 // property's balance). Bank escrow accounts are $0, so escrow is 0 — the prior large "escrow" figure
 // was mortgage/servicer escrow (held off-balance-sheet), which never reconciled to the bank ledger.
-const AUG_OPRES = {"Apple Creek":{"operating":116086.62,"reserve":77621.08},"Brookmore Hollow":{"operating":289417.15,"reserve":336901.86},"Cedar Ridge":{"operating":38873.63,"reserve":159.88},"Churchill Square":{"operating":45251.09,"reserve":111015.07},"City Crossing":{"operating":242918.27,"reserve":236025.74},"Deerbrook Forest":{"operating":35218.83,"reserve":71.52},"Deerbrook Gardens":{"operating":306075.57,"reserve":7716.58},"Green Meadows":{"operating":175935.72,"reserve":103884.97},"Huntington Oaks":{"operating":68315.81,"reserve":0},"Kingsville Pointe":{"operating":58603.72,"reserve":100163},"Lakeview at Westpark":{"operating":87309.66,"reserve":498403.95},"Meadow Park":{"operating":223890.5,"reserve":105698.54},"Meadowbrook":{"operating":500043.02,"reserve":325060.47},"Newport Oaks":{"operating":110194.14,"reserve":45347.46},"Oak Tree":{"operating":415773.27,"reserve":374727.13},"Parkside":{"operating":190318.36,"reserve":446345.96},"Reserve on Garth Rd":{"operating":97047.68,"reserve":29421.58},"Rockstar Waterchase":{"operating":303002.98,"reserve":253285.92},"Steeplechase":{"operating":50126.27,"reserve":278698.85},"Valencia Place":{"operating":314346.14,"reserve":126761.41},"Westwood Village":{"operating":75632.64,"reserve":718205.86}};
+const AUG_OPRES = {"Apple Creek":{"operating":116086.62,"reserve":77621.08},"Brookmore Hollow":{"operating":289417.15,"reserve":336901.86},"Cedar Ridge":{"operating":38873.63,"reserve":159.88},"Churchill Square":{"operating":45251.09,"reserve":111015.07},"City Crossing":{"operating":242918.27,"reserve":236025.74},"Deerbrook Forest":{"operating":35218.83,"reserve":71.52},"Deerbrook Gardens":{"operating":306075.57,"reserve":7716.58},"Green Meadows":{"operating":175935.72,"reserve":103884.97},"Huntington Oaks":{"operating":68315.81,"reserve":0},"Kingsville Pointe":{"operating":58603.72,"reserve":100163},"Lakeview at Westpark":{"operating":87309.66,"reserve":498403.95},"Meadow Park":{"operating":223890.5,"reserve":105698.54},"Meadowbrook":{"operating":500043.02,"reserve":325060.47},"Newport Oaks":{"operating":110194.14,"reserve":45347.46},"Oak Tree":{"operating":415773.27,"reserve":374727.13},"Parkside":{"operating":190318.36,"reserve":446345.96},"Reserve on Garth Rd":{"operating":97047.68,"reserve":29421.58},"Rockstar Waterchase":{"operating":290848.74,"reserve":253285.92},"Steeplechase":{"operating":50126.27,"reserve":278698.85},"Valencia Place":{"operating":314346.14,"reserve":126761.41},"Westwood Village":{"operating":75632.64,"reserve":718205.86}};
 PROPS.forEach(p => { if(AUG_OPRES[p]) OPRES[p] = AUG_OPRES[p]; });
 
 // Lender-held reserves/escrows (servicer-held, off the bank accounts; as of 8/20/2026).
