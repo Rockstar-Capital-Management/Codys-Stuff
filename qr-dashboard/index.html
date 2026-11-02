@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rockstar QR Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* Rockstar look, always dark: the links pages' navy-to-blue band and gold rule over a deep-navy page */
+  :root {
+    --bg: #0c1830; --navy: #152c55; --blue: #5f94d6; --gold: #d9a441; --gold-hi: #e8b85a;
+    --panel: #12234a; --panel-hi: #172b57; --line: rgba(255,255,255,0.09);
+    --text: #f2f4f9; --muted: #a7b3cc; --faint: #6f7d99; --bad: #f2705e;
+    --sans: Montserrat, "Segoe UI", Arial, sans-serif; --display: Oswald, "Arial Narrow", Arial, sans-serif;
+    --radius: 12px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+  .in { max-width: 1160px; margin-inline: auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  .band { background: linear-gradient(135deg, #152c55 0%, #1f4a8a 60%, #5f94d6 130%); border-bottom: 4px solid var(--gold); }
+  .band .in { padding-block: 22px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 20px; min-width: 0; }
+  .logo { width: 170px; height: auto; display: block; }
+  .rule { width: 1px; align-self: stretch; background: rgba(255,255,255,0.3); }
+  .kick { margin: 0; font-family: var(--display); font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  h1 { margin: 2px 0 0; font-family: var(--display); font-weight: 600; font-size: 28px; letter-spacing: .03em; text-transform: uppercase; color: #fff; line-height: 1.1; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  select { appearance: none; background: rgba(10,22,46,0.55) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23d9a441' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 12px center; color: #fff; border: 1px solid rgba(255,255,255,0.28); border-radius: var(--radius); padding: 9px 34px 9px 12px; font: inherit; font-weight: 500; min-width: 14rem; max-width: 100%; cursor: pointer; }
+  select option { background: var(--navy); color: #fff; }
+  .range { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius); background: rgba(10,22,46,0.55); border: 1px solid rgba(255,255,255,0.28); }
+  .range button { border: 0; background: none; color: rgba(255,255,255,0.78); font: inherit; font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+  .range button[aria-pressed="true"] { background: var(--gold); color: var(--navy); }
+  button:focus-visible, select:focus-visible, tbody tr:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  main { padding-block: 22px 40px; display: flex; flex-direction: column; gap: 18px; }
+  .context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+  .where { margin: 0; font-size: 17px; font-weight: 600; }
+  .where .dot { color: var(--faint); margin: 0 8px; }
+  .where .win { color: var(--muted); font-weight: 400; }
+  .right { display: flex; align-items: center; gap: 12px; }
+  .live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #4cc38a; box-shadow: 0 0 0 3px rgba(76,195,138,0.18); }
+  .live.err::before { background: var(--bad); box-shadow: 0 0 0 3px rgba(242,112,94,0.18); }
+  .back { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: var(--radius); padding: 7px 12px; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+  .back:hover { border-color: var(--gold); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 14px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 16px 20px; position: relative; overflow: hidden; }
+  .tile::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--blue); }
+  .tile.lead::before { background: var(--gold); }
+  .k { margin: 0; font-family: var(--display); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .num { display: block; margin-top: 8px; font-size: 34px; font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; color: #fff; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; min-width: 0; }
+  .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; margin-bottom: 14px; }
+  h2 { margin: 0; font-family: var(--display); font-weight: 500; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; }
+  .hint { color: var(--faint); font-size: 12px; }
+  .chart { position: relative; min-height: 180px; }
+  .chart svg { display: block; }
+  .chart text { fill: var(--muted); font-size: 11px; font-family: var(--sans); }
+  .tip { position: absolute; top: 0; pointer-events: none; background: #0a1428; border: 1px solid rgba(217,164,65,0.55); border-radius: 9px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+  .tip span { color: var(--muted); margin-right: 8px; }
+
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 11px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th button { border: 0; background: none; padding: 0; font-family: var(--display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
+  th[aria-sort="ascending"] button, th[aria-sort="descending"] button { color: var(--gold); }
+  th[aria-sort="ascending"] button::after { content: " ↑"; }
+  th[aria-sort="descending"] button::after { content: " ↓"; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: rgba(95,148,214,0.08); }
+  tbody td:first-child { color: #fff; font-weight: 600; }
+  tbody td:first-child::after { content: " ›"; color: var(--gold); }
+  tfoot td { font-weight: 600; border-bottom: 0; color: var(--muted); }
+  .bar { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .bar i { display: inline-block; height: 6px; border-radius: 3px; background: var(--gold); }
+  .zero { color: var(--faint); }
+
+  .btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 2px 32px; }
+  .btn { display: grid; grid-template-columns: 10.5rem 1fr 3rem; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .btn-name { color: var(--muted); }
+  .btn.lead .btn-name { color: #fff; font-weight: 600; }
+  .track { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .fill { display: block; height: 100%; width: 0; border-radius: 4px; background: var(--blue); transition: width .4s ease-out; }
+  .btn.lead .fill { background: var(--gold); }
+  .btn b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .msg { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 180px; color: var(--muted); font-size: 12px; }
+  .msg.err::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--bad); }
+  .loading .num, .loading tbody, .loading .btn b { opacity: .45; transition: opacity .2s; }
+  @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+  @media (max-width: 600px) { .rule, .logo { display: none; } select { min-width: 0; flex: 1; } h1 { font-size: 22px; } .btn { grid-template-columns: 7.5rem 1fr 2.5rem; } }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="in">
+    <div class="brand">
+      <img class="logo" src="rs-whitetext.webp" alt="Rockstar Capital">
+      <span class="rule"></span>
+      <div>
+        <p class="kick">Marketing</p>
+        <h1>QR Scan Dashboard</h1>
+      </div>
+    </div>
+    <div class="controls">
+      <select id="property" aria-label="Property"><option value="">All properties</option></select>
+      <div class="range" role="group" aria-label="Date range">
+        <button type="button" data-w="7">7D</button>
+        <button type="button" data-w="30" aria-pressed="true">30D</button>
+        <button type="button" data-w="90">90D</button>
+        <button type="button" data-w="365">1Y</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="in loading" id="main">
+  <div class="context">
+    <p class="where"><span id="pname">All properties</span><span class="dot">·</span><span class="win" id="wlabel">Last 30 days</span></p>
+    <div class="right">
+      <span class="live" id="live">Loading…</span>
+      <button type="button" class="back" id="back" hidden>← All properties</button>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile lead"><p class="k">QR scans</p><b class="num" id="t-scans">–</b></div>
+    <div class="tile"><p class="k">Apply Now taps</p><b class="num" id="t-apply">–</b></div>
+    <div class="tile"><p class="k">All button taps</p><b class="num" id="t-taps">–</b></div>
+    <div class="tile"><p class="k">Tap rate</p><b class="num" id="t-rate">–</b></div>
+  </div>
+
+  <section class="card">
+    <div class="card-head"><h2>Scans per day</h2></div>
+    <div class="chart" id="chart"></div>
+  </section>
+
+  <section class="card" id="home">
+    <div class="card-head"><h2>Properties</h2><span class="hint">Select a property for its button detail</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th data-k="name" aria-sort="none"><button type="button">Property</button></th>
+          <th data-k="scans" aria-sort="descending"><button type="button">Scans</button></th>
+          <th data-k="apply_now" aria-sort="none"><button type="button">Apply Now</button></th>
+          <th data-k="call" aria-sort="none"><button type="button">Call</button></th>
+          <th data-k="taps" aria-sort="none"><button type="button">All taps</button></th>
+          <th data-k="rate" aria-sort="none"><button type="button">Tap rate</button></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+        <tfoot id="total"></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="detail" hidden>
+    <div class="card-head"><h2>Button taps</h2><span class="hint">Taps on the links page after a scan</span></div>
+    <div class="btns" id="btns"></div>
+  </section>
+</main>
+
+<script>
+  // Every property with a QR links page: page folder + GoatCounter event-tag prefixes.
+  // Old "click-*" taps predate the property prefix and were all Lakeview.
+  const PROPERTIES = [
+    ['Lakeview at Westpark', 'lakeview-links', ['lakeview-', 'click-']],
+    ['Deerbrook Forest', 'deerbrook-forest-links', ['deerbrook-']],
+    ['Deerbrook Gardens', 'deerbrook-garden-links', ['deerbrook-garden-']],
+    ['Parkside', 'parkside-links', ['parkside-']],
+    ['Meadowbrook', 'meadowbrook-links', ['meadowbrook-']],
+    ['Waterchase', 'waterchase-links', ['waterchase-']],
+    ['Apple Creek', 'apple-creek-links', ['apple-creek-']],
+    ['Brookmore Hollow', 'brookmore-hollow-links', ['brookmore-hollow-']],
+    ['Cedar Ridge', 'cedar-ridge-links', ['cedar-ridge-']],
+    ['Churchill Square', 'churchill-square-links', ['churchill-square-']],
+    ['City Crossing', 'city-crossing-links', ['city-crossing-']],
+    ['Green Meadows', 'green-meadows-links', ['green-meadows-']],
+    ['Huntington Oaks', 'huntington-oaks-links', ['huntington-oaks-']],
+    ['Kingsville Pointe', 'kingsville-pointe-links', ['kingsville-pointe-']],
+    ['Meadow Park', 'meadow-park-links', ['meadow-park-']],
+    ['Newport Oaks', 'newport-oaks-links', ['newport-oaks-']],
+    ['Oak Tree', 'oak-tree-links', ['oak-tree-']],
+    ['Reserve on Garth', 'reserve-on-garth-links', ['reserve-on-garth-']],
+    ['Steeplechase', 'steeplechase-links', ['steeplechase-']],
+    ['Valencia Place', 'valencia-place-links', ['valencia-place-']],
+    ['Westwood Village', 'westwood-village-links', ['westwood-village-']],
+  ].map(([name, page, prefixes]) => ({ name, page, slug: page.replace(/-links$/, ''), prefixes }));
+  const PREFIXES = PROPERTIES.flatMap((p) => p.prefixes.map((prefix) => ({ prefix, name: p.name })))
+    .sort((a, b) => b.prefix.length - a.prefix.length);  // "deerbrook-garden-" before "deerbrook-"
+  const BUTTONS = [['apply-now', 'Apply Now'], ['call', 'Call'], ['google-review', 'Google Review'], ['facebook', 'Facebook'],
+    ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['yelp', 'Yelp'], ['apartment-ratings', 'Apartment Ratings']];
+  const LABELS = { 7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days', 365: 'Last 12 months' };
+  const ALL = null;
+
+  const $ = (id) => document.getElementById(id);
+  const count = (n) => n.toLocaleString('en-US');
+  const pct = (r) => (r.scans ? Math.round(r.taps / r.scans * 100) + '%' : '–');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  let days = 30, current = ALL, data = null, sortKey = 'scans', sortDir = -1;
+  const cache = {};
+
+  // Raw GoatCounter hits -> per-property totals and per-day scans
+  function shape(raw) {
+    const dates = [];
+    for (let d = new Date(raw.start + 'T00:00:00Z'); d <= new Date(raw.end + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) dates.push(d.toISOString().slice(0, 10));
+    const blank = (name) => ({ name, scans: 0, taps: 0, btn: {}, daily: Object.fromEntries(dates.map((d) => [d, 0])) });
+    const props = Object.fromEntries(PROPERTIES.map((p) => [p.name, blank(p.name)]));
+    const total = blank('All properties');
+    for (const h of raw.hits) {
+      const path = String(h.path || '').replace(/^\/+|\/+$/g, '');
+      const n = h.count ?? h.count_unique ?? 0;
+      if (h.event) {
+        const m = PREFIXES.find((x) => path.startsWith(x.prefix));
+        if (!m) continue;
+        const b = path.slice(m.prefix.length);
+        for (const r of [props[m.name], total]) { r.btn[b] = (r.btn[b] || 0) + n; r.taps += n; }
+      } else {
+        const p = PROPERTIES.find((x) => path.split('/')[0] === x.page);
+        if (!p) continue;
+        for (const r of [props[p.name], total]) {
+          r.scans += n;
+          for (const s of h.stats || []) if (s.day in r.daily) r.daily[s.day] += s.daily ?? 0;
+        }
+      }
+    }
+    return { dates, props, total };
+  }
+
+  async function load() {
+    $('main').classList.add('loading');
+    try {
+      if (!cache[days]) {
+        const r = await fetch('/api/qr-stats?days=' + days, { cache: 'no-store' });
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error || 'Error ' + r.status);
+        cache[days] = shape(body);
+      }
+      data = cache[days];
+      $('live').className = 'live';
+      $('live').textContent = 'Live · updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } catch (e) {
+      $('live').className = 'live err';
+      $('live').textContent = "Couldn't reach GoatCounter";
+      if (!data) { $('chart').replaceChildren(el('div', 'msg err', "Couldn't load scans. Refresh the page to try again.")); return; }
+    } finally {
+      $('main').classList.remove('loading');
+    }
+    render();
+  }
+
+  function render() {
+    if (!data) return;
+    const r = current ? data.props[current] : data.total;
+    $('pname').textContent = r.name;
+    $('wlabel').textContent = LABELS[days];
+    $('t-scans').textContent = count(r.scans);
+    $('t-apply').textContent = count(r.btn['apply-now'] || 0);
+    $('t-taps').textContent = count(r.taps);
+    $('t-rate').textContent = pct(r);
+    $('home').hidden = !!current;
+    $('detail').hidden = !current;
+    $('back').hidden = !current;
+    $('property').value = current || '';
+    document.querySelectorAll('.range button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.w === days)));
+    drawChart(r);
+    if (current) drawButtons(r); else drawTable();
+  }
+
+  function drawTable() {
+    const val = (r, k) => k === 'name' ? r.name : k === 'apply_now' ? (r.btn['apply-now'] || 0) : k === 'call' ? (r.btn.call || 0) : k === 'rate' ? (r.scans ? r.taps / r.scans : -1) : r[k];
+    const rows = Object.values(data.props).sort((a, b) => {
+      const x = val(a, sortKey), y = val(b, sortKey);
+      return (x > y ? 1 : x < y ? -1 : 0) * sortDir || a.name.localeCompare(b.name);
+    });
+    const max = Math.max(1, ...rows.map((r) => r.scans));
+    const cells = (r, isTotal) => {
+      const tr = el('tr');
+      tr.append(el('td', null, isTotal ? 'Total' : r.name));
+      const sc = el('td'); const bar = el('span', 'bar'); const i = el('i');
+      i.style.width = (r.scans && !isTotal ? Math.max(3, r.scans / max * 80) : 0) + 'px';
+      bar.append(i, el('span', r.scans ? null : 'zero', count(r.scans))); sc.append(bar); tr.append(sc);
+      for (const v of [r.btn['apply-now'] || 0, r.btn.call || 0, r.taps]) tr.append(el('td', v ? null : 'zero', count(v)));
+      tr.append(el('td', r.scans ? null : 'zero', pct(r)));
+      return tr;
+    };
+    $('rows').replaceChildren(...rows.map((r) => { const tr = cells(r); tr.tabIndex = 0; tr.dataset.name = r.name; return tr; }));
+    $('total').replaceChildren(cells(data.total, true));
+  }
+
+  function drawButtons(r) {
+    const max = Math.max(1, ...BUTTONS.map(([k]) => r.btn[k] || 0));
+    $('btns').replaceChildren(...BUTTONS.map(([k, label], i) => {
+      const v = r.btn[k] || 0;
+      const row = el('div', i === 0 ? 'btn lead' : 'btn');
+      const track = el('span', 'track'); const fill = el('span', 'fill');
+      track.append(fill);
+      row.append(el('span', 'btn-name', label), track, el('b', v ? null : 'zero', count(v)));
+      requestAnimationFrame(() => { fill.style.width = (v / max * 100) + '%'; });
+      return row;
+    }));
+  }
+
+  function drawChart(r) {
+    const box = $('chart');
+    box.replaceChildren();
+    const rows = data.dates.map((d) => ({ day: new Date(d + 'T00:00:00Z'), scans: r.daily[d] }));
+    const W = Math.max(280, box.clientWidth || 700), H = 180, NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', '100%'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const add = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; svg.append(e); return e; };
+    box.append(svg);
+    const top = Math.max(4, ...rows.map((x) => x.scans));
+    const step = Math.max(1, Math.ceil(top / 4));
+    const yMax = step * Math.ceil(top / step);
+    const ticks = []; for (let t = 0; t <= yMax; t += step) ticks.push(t);
+    const probe = add('text', {}, count(yMax));
+    const left = Math.ceil(probe.getComputedTextLength()) + 10;
+    probe.remove();
+    const base = H - 24, y = (v) => base - (v / yMax) * (base - 8);
+    const slot = (W - 4 - left) / rows.length, bw = Math.max(1, slot * (rows.length > 90 ? 0.85 : 0.72));
+    for (const t of ticks) {
+      add('line', { x1: left, x2: W - 4, y1: y(t), y2: y(t), stroke: t ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.22)' });
+      add('text', { x: left - 6, y: y(t), dy: '0.32em', 'text-anchor': 'end' }, count(t));
+    }
+    const defs = add('defs', {});
+    defs.innerHTML = '<linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e8b85a"/><stop offset="1" stop-color="#b9842a"/></linearGradient>';
+    rows.forEach((x, i) => {
+      if (x.scans) add('rect', { x: left + i * slot + (slot - bw) / 2, width: bw, y: y(x.scans), height: base - y(x.scans), rx: Math.min(3, bw / 2), fill: 'url(#g)' });
+    });
+    const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const every = Math.ceil(rows.length / Math.max(2, Math.floor((W - left) / 80)));
+    rows.forEach((x, i) => {
+      if (i % every) return;
+      const t = add('text', { y: H - 6 }, fmt(x.day));
+      const tw = t.getComputedTextLength();
+      t.setAttribute('x', Math.min(Math.max(left + i * slot + slot / 2 - tw / 2, left), W - 4 - tw));
+    });
+    const tip = el('div', 'tip'); tip.hidden = true;
+    const tDay = el('span'), tVal = el('b'); tip.append(tDay, tVal); box.append(tip);
+    svg.addEventListener('mousemove', (e) => {
+      const b = svg.getBoundingClientRect();
+      const i = Math.floor(((e.clientX - b.left) * (W / b.width) - left) / slot);
+      if (i < 0 || i >= rows.length) { tip.hidden = true; return; }
+      tDay.textContent = fmt(rows[i].day); tVal.textContent = count(rows[i].scans) + (rows[i].scans === 1 ? ' scan' : ' scans');
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = Math.min(Math.max(0, e.clientX - b.left - tw / 2), b.width - tw) + 'px';
+    });
+    svg.addEventListener('mouseleave', () => { tip.hidden = true; });
+  }
+
+  // Property in the URL hash (#parkside), so a property view can be bookmarked or sent
+  function fromHash() {
+    const p = PROPERTIES.find((x) => x.slug === location.hash.slice(1));
+    current = p ? p.name : ALL;
+    render();
+  }
+  function pick(name) {
+    const p = PROPERTIES.find((x) => x.name === name);
+    history.replaceState(null, '', p ? '#' + p.slug : location.pathname);
+    current = p ? p.name : ALL;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  const sel = $('property');
+  for (const p of [...PROPERTIES].sort((a, b) => a.name.localeCompare(b.name))) sel.append(new Option(p.name, p.name));
+  sel.addEventListener('change', () => pick(sel.value || null));
+  $('back').addEventListener('click', () => pick(null));
+  document.querySelectorAll('.range button').forEach((b) => b.addEventListener('click', () => { days = +b.dataset.w; load(); }));
+  document.querySelectorAll('th[data-k]').forEach((th) => th.querySelector('button').addEventListener('click', () => {
+    const k = th.dataset.k;
+    sortDir = k === sortKey ? -sortDir : (k === 'name' ? 1 : -1);
+    sortKey = k;
+    document.querySelectorAll('th[data-k]').forEach((x) => x.setAttribute('aria-sort', x.dataset.k === sortKey ? (sortDir < 0 ? 'descending' : 'ascending') : 'none'));
+    drawTable();
+  }));
+  const open = (e) => { const tr = e.target.closest('tr[data-name]'); if (tr) pick(tr.dataset.name); };
+  $('rows').addEventListener('click', open);
+  $('rows').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
+  window.addEventListener('hashchange', fromHash);
+  let resize; window.addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(render, 150); });
+  // Live: pull fresh numbers every 5 minutes while the page is open
+  setInterval(() => { delete cache[days]; load(); }, 5 * 60 * 1000);
+
+  const start = PROPERTIES.find((x) => x.slug === location.hash.slice(1));
+  current = start ? start.name : ALL;
+  load();
+</script>
+</body>
+</html>

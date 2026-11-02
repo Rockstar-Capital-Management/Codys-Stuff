@@ -1,0 +1,10 @@
+{
+  "name": "rockstar-capital-qr-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live QR scan dashboard for Rockstar Capital properties (GoatCounter)",
+  "type": "commonjs",
+  "dependencies": {
+    "@vercel/functions": "^3.9.3"
+  }
+}
