@@ -1,0 +1,51 @@
+# Goes in the Codys-Stuff repo at .github/workflows/bank-refresh.yml
+# Refreshes the bank-balance dashboard from the SharePoint workbooks, on GitHub's servers.
+# Runs every 30 minutes, 10 AM to 5 PM Central on weekdays, and can be started by hand from the Actions tab.
+# A run that finds nothing new makes no commit. A run that fails validation changes nothing.
+name: Bank balance refresh
+
+on:
+  schedule:
+    # GitHub schedules are in UTC. 16:00-22:30 UTC = 10:00 AM-4:30 PM Central in winter (11 AM-5:30 PM in summer).
+    - cron: '0,30 16-22 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bank-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the spreadsheet reader
+        working-directory: tools/dashboard-refresh
+        run: npm ci
+
+      - name: Download the workbooks from SharePoint
+        env:
+          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+          SP_SITE: ${{ secrets.SP_SITE }}
+        run: node tools/dashboard-refresh/cloud/fetch-workbooks.js "$RUNNER_TEMP/bank"
+
+      - name: Rebuild the dashboard data, commit and push
+        env:
+          BANK_BALANCES_DIR: ${{ runner.temp }}/bank
+        run: |
+          git config user.name "bank-refresh"
+          git config user.email "bank-refresh@users.noreply.github.com"
+          node tools/dashboard-refresh/refresh.js --repo "$GITHUB_WORKSPACE" --deploy
