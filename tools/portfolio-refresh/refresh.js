@@ -3,7 +3,8 @@
 // What it updates (stage 1 - everything the daily Entrata rent roll and activity feed can drive):
 //   D   rent history: appends each newly finished month (property, bedroom and floor-plan averages)
 //   RR  resident drill-down: rebuilt from the latest daily rent roll
-//   PR  pricing rows: status, leased rent, lease dates and resident refreshed (base rent and premiums are kept)
+//   PR  pricing rows: status, market rent, leased rent, lease dates and resident refreshed (base rent and premiums are kept);
+//       resident balance and deposit from the daily receivables snapshot; days vacant from Entrata's unit availability
 //   TO  turnover: appends each newly finished month from Entrata's Property Pulse
 // Everything else on the page (Expenses, Concessions, Collections, Housing, ...) is left exactly as it is.
 //
@@ -65,7 +66,7 @@ const props = await getAll('properties?select=id,name')
 const idOf = Object.fromEntries(props.map((p) => [p.name, p.id])), nameOf = Object.fromEntries(props.map((p) => [p.id, p.name]))
 for (const n of NAMES) if (!idOf[n]) fail(`property "${n}" is on the dashboard but not in Supabase`)
 
-const RR_COLS = 'property_id,unit,unit_type,floorplan,bedrooms,sqft,unit_status,move_in,lease_end,market_rent,scheduled_rent'
+const RR_COLS = 'property_id,unit,unit_type,floorplan,bedrooms,sqft,unit_status,move_in,lease_start,lease_end,market_rent,scheduled_rent'
 async function rentRoll(date) {
   const rows = await getAll(`rent_roll_snapshots?select=${RR_COLS}&as_of=eq.${date}&order=id`)
   const by = Object.fromEntries(NAMES.map((n) => [n, []]))
@@ -166,6 +167,31 @@ for (const t of tenure) {
   const name = `${(t.last_name || '').trim()}, ${(t.first_name || '').trim()}`
   for (const k of [t.building ? `${t.building}-${t.unit}` : null, t.unit]) if (k) (resident[n] ??= {})[k] ??= name
 }
+// Receivables per lease (a lease with no row owes nothing), unit availability and recorded departures.
+const dayDiff = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 864e5)
+const addDays = (d, n) => new Date(Date.parse(d) + n * 864e5).toISOString().slice(0, 10)
+const receivable = {}, moveOut = {}
+let arDate = null
+if (!CHECK) {
+  arDate = (await getAll(`ar_lease_snapshots?select=as_of_date&as_of_date=lte.${asof}&order=as_of_date.desc&limit=1`))[0]?.as_of_date
+  if (!arDate || dayDiff(asof, arDate) > 3) fail(`no receivables snapshot within 3 days of ${asof}`)
+  else for (const a of await getAll(`ar_lease_snapshots?select=property_id,bldg_unit,lease_status,balance,deposit_held&as_of_date=eq.${arDate}&order=id`)) {
+    if (!/^(Current|Notice)/.test(a.lease_status)) continue
+    const r = ((receivable[nameOf[a.property_id]] ??= {})[a.bldg_unit] ??= { balance: 0, deposit: 0 })
+    r.balance += Number(a.balance || 0); r.deposit += Number(a.deposit_held || 0)
+  }
+  // Entrata sets a vacated unit's available date 8 days after move-out; a recorded departure date is used when there is one.
+  const units = await getAll('units?select=id,property_id,unit_number,available_date&order=id')
+  const byId = Object.fromEntries(units.map((u) => [u.id, u]))
+  for (const u of units) if (u.available_date) ((moveOut[nameOf[u.property_id]] ??= {})[u.unit_number] = { date: addDays(u.available_date, -8) })
+  for (const d of await getAll('lease_departures?select=unit_id,departed_at&order=departed_at')) {
+    const u = byId[d.unit_id]; if (u) ((moveOut[nameOf[u.property_id]] ??= {})[u.unit_number] = { date: d.departed_at.slice(0, 10), exact: true })
+  }
+}
+const unitNo = (unit) => (unit.includes('-') ? unit.slice(unit.indexOf('-') + 1) : unit)
+const round2 = (n) => Math.round(n * 100) / 100
+const newRx = {}, newAv = { u: {}, asof }, newSq = {}
+let balChanged = 0, vacTracked = 0, vacUnknown = 0
 let rrSame = 0, rrN = 0, prSame = 0, prN = 0
 const newRR = { asof, p: {} }
 for (const d of D) {
@@ -184,9 +210,28 @@ for (const d of D) {
   for (const pr of PR.p[d.p] || []) {
     const r = snap[pr[1]]; if (!r) continue
     const occ = OCCUPIED.has(r.unit_status)
-    const next = [...pr]; next[2] = r.unit_status; next[7] = occ ? r.scheduled_rent : null; next[8] = occ ? r.move_in ?? '' : ''; next[9] = occ ? r.lease_end ?? '' : ''
+    const next = [...pr]; next[2] = r.unit_status; if (!CHECK) next[6] = r.market_rent ?? pr[6]; next[7] = occ ? r.scheduled_rent : null; next[8] = occ ? r.move_in ?? '' : ''; next[9] = occ ? r.lease_end ?? '' : ''
     next[10] = occ ? newRR.p[d.p].find((x) => x[1] === r.unit)?.[2] ?? '' : ''
     if (CHECK) { prN++; if (JSON.stringify(next) === JSON.stringify(pr)) prSame++ } else pr.splice(0, pr.length, ...next)
+  }
+  if (CHECK) continue
+  // Resident extras [lease start, expected move-out, balance, deposit, sq ft], days vacant [days, moved out], sq ft
+  const oldRx = PR.rx?.[d.p] || {}, oldAv = PR.av?.u?.[d.p] || {}
+  newRx[d.p] = {}; newAv.u[d.p] = {}; newSq[d.p] = {}
+  for (const r of rows) {
+    if (r.sqft) newSq[d.p][r.unit] = r.sqft
+    if (OCCUPIED.has(r.unit_status)) {
+      const o = oldRx[r.unit], ar = receivable[d.p]?.[r.unit]
+      const sameLease = o && o[0] === r.lease_start
+      const balance = ar ? round2(ar.balance) : 0, deposit = ar ? round2(ar.deposit) : sameLease ? o[3] ?? 0 : 0
+      if (!o || Math.abs((o[2] ?? 0) - balance) > 0.005) balChanged++
+      newRx[d.p][r.unit] = [r.lease_start ?? '', sameLease ? o[1] ?? null : null, balance, deposit, r.sqft ?? o?.[4] ?? null]
+    } else if (/^Vacant Unrented/.test(r.unit_status)) {
+      // keep the move-out date the page already has for a unit that is still vacant; otherwise take Entrata's
+      const known = oldAv[r.unit]?.[1], m = moveOut[d.p]?.[unitNo(r.unit)] ?? moveOut[d.p]?.[r.unit]
+      const date = known ?? (m && m.date <= asof ? m.date : null)
+      if (date) { newAv.u[d.p][r.unit] = [Math.max(0, dayDiff(asof, date)), date]; vacTracked++ } else vacUnknown++
+    }
   }
 }
 if (CHECK) {
@@ -199,7 +244,10 @@ if (CHECK) {
 const total = Object.values(newRR.p).reduce((s, r) => s + r.length, 0)
 if (total < 4000) fail(`latest rent roll has only ${total} units`)
 if (errors.length) { console.log(`Not writing: ${errors.length} check(s) failed.`); process.exit(3) }
-setBlock('D', D); setBlock('TO', TO); setBlock('RR', newRR); PR.asof = asof; setBlock('PR', PR)
+if (vacTracked < (vacTracked + vacUnknown) * 0.8) fail(`a move-out date was found for only ${vacTracked} of ${vacTracked + vacUnknown} vacant units`)
+if (errors.length) { console.log(`Not writing: ${errors.length} check(s) failed.`); process.exit(3) }
+PR.rx = newRx; PR.av = newAv; PR.sq = newSq; PR.asof = asof
+setBlock('D', D); setBlock('TO', TO); setBlock('RR', newRR); setBlock('PR', PR)
 { // the two fixed month labels in the page markup follow the latest month in the rent history
   const [y, m] = D[0].lm.split('-').map(Number), label = `${MONTHS[m - 1]} ${y}`
   html = html.replace(/(<span>Data through<\/span><b>)[^<]*(<\/b>)/, `$1${label}$2`)
@@ -209,4 +257,5 @@ const out = WRITE ? PAGE : PAGE.replace(/\.html$/, '.candidate.html')
 writeFileSync(out, html)
 console.log(`Rent history: ${added.length ? 'added ' + added.join(', ') : 'no new finished month'}; turnover: ${toAdded.length ? 'added ' + toAdded.join(', ') : 'no new month'}`)
 console.log(`Residents and pricing refreshed to the ${asof} rent roll (${total} units).`)
+console.log(`Balances from the ${arDate} receivables snapshot (${balChanged} changed); days vacant set for ${vacTracked} vacant units, ${vacUnknown} without a move-out date.`)
 console.log(`${WRITE ? 'Updated' : 'Dry run: wrote'} ${out} (${Math.round(Buffer.byteLength(html) / 1024)} KB)`)
